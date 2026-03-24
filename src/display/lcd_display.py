@@ -37,8 +37,15 @@ class LCDDisplay:
     def show_idle(self) -> None:
         self.write_lines("Radar Ready", "Waiting...")
 
-    def show_speed(self, speed_mph: float) -> None:
-        self.write_lines(f"Speed {speed_mph:.1f}", "Be Safe")
+    def show_speed(self, speed_mph: float, direction: str) -> None:
+        short_dir = "Approach" if direction == "approaching" else "Recede"
+        self.write_lines(f"Speed {speed_mph:.1f}", short_dir)
 
     def show_warning(self, speed_mph: float) -> None:
         self.write_lines(f"Speed {speed_mph}:.1f", " SLOW DOWN!")
+
+    def show_no_target(self) -> None:
+        self.write_lines("No Target", "Monitoring...")
+
+    def show_error(self, message: str) -> None:
+        self.write_lines("Radar Error", message[:16])

@@ -9,19 +9,11 @@ Starts the radar, LCD, and camera services. Then runs the main monitoring loop.
 
 import time
 
+from src.config.settings import MIN_VALID_SPEED_MPH, RADAR_POLL_INTERVAL_SECONDS, SPEED_THRESHOLD_MPH
+
 from src.display.lcd_display import LCDDisplay
 from src.camera.capture import CameraCapture
 from src.radar.radar import RadarSensor
-
-def send_and_print(radar: RadarSensor, cmd: str) -> None:
-    radar.write_bytes(cmd.encode("ascii"))
-    time.sleep(0.2)
-    raw = radar.read_bytes(128)
-    if raw:
-        print(f"{cmd.strip()} -> {raw!r}")
-    else:
-        print(f"{cmd.strip()} -> No Response")
-
 
 
 def main() -> None:
@@ -31,28 +23,51 @@ def main() -> None:
     try: 
         lcd.show_startup()
         time.sleep(1)
+        lcd.write_lines("Connecting...", "Radar USB")
 
-        lcd.write_lines("Connecting...", "Radar UUSB")
         radar.connect()
-        time.sleep(1)
+        device_type = radar.get_device_type()
+        firmware = radar.get_firmware_version()
+
+        print(f"Device type response: {device_type}")
+        print(f"Firmware response: {firmware}")
 
         lcd.write_lines("Radar Connected", "Check Terminal")
+        time.sleep(1)
 
-        # Basic identification
-        send_and_print(radar, "$F01\r")
-        send_and_print(radar, "$F00\r")
+        while True:
+            reading = radar.get_target_data()
 
-        # Poll repeatedly while moving your hand in front of radar
-        for _ in range(20):
-            send_and_print(radar, "$R00\r")
-            send_and_print(radar, "$R01\r")
-            send_and_print(radar, "$R02\r")
-            send_and_print(radar, "$C00\r")
-            time.sleep(0.5)
+            if reading is None:
+                print("Could not parse C00 response.")
+                lcd.show_error("Parse failed")
+                time.sleep(RADAR_POLL_INTERVAL_SECONDS)
+                continue
 
-        lcd.write_lines("Radar Test Done", "Check Terminal")
-        time.sleep(2)
-        lcd.show_idle()
+            print(
+                f"detected={reading.detected} | "
+                f"direction={reading.direction} | "
+                f"speed_bin={reading.speed_bin} | "
+                f"speed_mph={reading.speed_mph:.2f} | "
+                f"magnitude_db={reading.magnitude_db} | "
+                f"raw={reading.raw_response} | "    
+            )
+
+
+            if not reading.detected or reading.speed_mph < MIN_VALID_SPEED_MPH:
+                lcd.show_no_target()
+            elif reading.speed_mph >= SPEED_THRESHOLD_MPH:
+                lcd.show_warning(reading.speed_mph)
+            else:
+                lcd.show_speed(reading.speed_mph, reading.direction)
+
+            time.sleep(RADAR_POLL_INTERVAL_SECONDS)
+
+    except KeyboardInterrupt:
+        print("\nStopped by user.")
+        lcd.write_lines("Stopping...", "")
+        time.sleep(1)
+        lcd.show_idle
 
     except Exception as exc:
         print(f"Radar test error: {exc}")
