@@ -29,7 +29,7 @@ WARNING_DISPLAY_SECONDS = 2
 DATA_DIR = BASE_DIR / "data"
 CAPTURE_DIR = DATA_DIR / "captures"
 LOG_DIR = DATA_DIR / "logs"
-DB_DIR = DATA_DIR = /"db"
+DB_DIR = DATA_DIR / "db" 
 
 # Dashboard settings
 API_HOST= "0.0.0.0"

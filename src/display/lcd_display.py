@@ -7,7 +7,7 @@ Sends status messages and speed warnings to the I2C LCD screen.
 
 from RPLCD.i2c import CharLCD
 
-from config.settings import LCD_I2C_ADDRESS, LCD_COLS, LCD_ROWS
+from src.config.settings import LCD_I2C_ADDRESS, LCD_COLS, LCD_ROWS
 
 class LCDDisplay:
     def __init__(self) -> None:
