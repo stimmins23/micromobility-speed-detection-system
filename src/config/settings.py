@@ -22,10 +22,10 @@ LCD_COLS = 16
 LCD_ROWS = 2
 
 # Speed threshold settings
-SPEED_THRESHOLD_MPH = 15
-MIN_VALID_SPEED_MPH = 3
-CAPTURE_COOLDOWN_SECONDS = 5
-WARNING_DISPLAY_SECONDS = 2
+SPEED_THRESHOLD_MPH = 1
+MIN_VALID_SPEED_MPH = 0.5
+CAPTURE_COOLDOWN_SECONDS = 0.2
+WARNING_DISPLAY_SECONDS = 1.5
 
 # Speed conversions - update later when confirm exact S04/Sample rate setting and conversion
 BIN_TO_MPH_FACTOR = 0.14
