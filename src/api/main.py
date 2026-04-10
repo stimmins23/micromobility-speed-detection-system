@@ -1,5 +1,8 @@
 from pathlib import Path
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from src.api.routes.events import router as events_router
+
 from src.database import (
     get_all_events,
     get_events_above_speed,
@@ -8,6 +11,16 @@ from src.database import (
 )
 
 app = FastAPI(title="Micromobility Speed Detection System")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(events_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DB_PATH = BASE_DIR / "tests" / "test_events.db"
