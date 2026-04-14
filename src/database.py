@@ -1,9 +1,11 @@
 import sqlite3
 from pathlib import Path
 from datetime import datetime
+
+from src.config.settings import DB_PATH
 from src.models.speed_event_model import SpeedEvent
 
-DEFAULT_DB_PATH = Path("data/events.db")
+DEFAULT_DB_PATH = DB_PATH
 
 
 def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
@@ -52,6 +54,8 @@ def insert_event(event: SpeedEvent, db_path: Path = DEFAULT_DB_PATH) -> None:
             ),
         )
         conn.commit()
+        event.id = cursor.lastrowid
+        return event
 
 
 def get_all_events(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
@@ -80,7 +84,8 @@ def get_all_events(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
         )
     return events
 
-def get_events_above_threshold(db_path=DEFAULT_DB_PATH) -> list[SpeedEvent]:
+
+def get_events_above_threshold(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -105,7 +110,11 @@ def get_events_above_threshold(db_path=DEFAULT_DB_PATH) -> list[SpeedEvent]:
         for row in rows
     ]
 
-def get_events_above_speed(min_speed: float, db_path=DEFAULT_DB_PATH) -> list[SpeedEvent]:
+
+def get_events_above_speed(
+    min_speed: float,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> list[SpeedEvent]:
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -131,13 +140,17 @@ def get_events_above_speed(min_speed: float, db_path=DEFAULT_DB_PATH) -> list[Sp
         for row in rows
     ]
 
-def get_events_by_location(location: str, db_path=DEFAULT_DB_PATH) -> list[SpeedEvent]:
+
+def get_events_by_location(
+    location: str,
+    db_path: Path = DEFAULT_DB_PATH,
+) -> list[SpeedEvent]:
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             SELECT id, timestamp, speed_mph, threshold_value, image_path, location
-            FROM EVENTS
+            FROM events
             WHERE location = ?
             ORDER BY id
             """,

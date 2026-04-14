@@ -4,9 +4,6 @@ Entry point for application.
 Starts the radar, LCD, and camera services. Then runs the main monitoring loop. 
 
 """
-
-# Currently only testing LCD startup and idle messages
-
 import time
 
 from src.config.settings import (
@@ -14,27 +11,35 @@ from src.config.settings import (
     RADAR_POLL_INTERVAL_SECONDS,
     SPEED_THRESHOLD_MPH,
     CAPTURE_COOLDOWN_SECONDS,
+    DEFAULT_LOCATION,
 )
 
 from src.display.lcd_display import LCDDisplay
 from src.camera.capture import CameraCapture
 from src.radar.radar import RadarSensor
+from src.database import create_table
+from src.logic.violation_handler import ViolationHandler
 
 
 def main() -> None:
     lcd = LCDDisplay()
     radar = RadarSensor()
     camera = CameraCapture()
+    violation_handler = ViolationHandler(
+        threshold_mph=SPEED_THRESHOLD_MPH,
+        location=DEFAULT_LOCATION,
+    )
 
     last_capture_time = 0.0
 
-    try: 
+    try:
         lcd.show_startup()
         time.sleep(1)
 
         lcd.write_lines("Connecting...", "Radar USB")
         radar.connect()
 
+        create_table()
         camera.start()
 
         device_type = radar.get_device_type()
@@ -64,9 +69,8 @@ def main() -> None:
                 f"speed_bin={reading.speed_bin} | "
                 f"speed_mph={reading.speed_mph:.2f} | "
                 f"magnitude_db={reading.magnitude_db} | "
-                f"raw={reading.raw_response} | "    
+                f"raw={reading.raw_response} | "
             )
-
 
             if not reading.detected or reading.speed_mph < MIN_VALID_SPEED_MPH:
                 lcd.show_no_target()
@@ -76,16 +80,33 @@ def main() -> None:
 
                 now = time.time()
                 if now - last_capture_time >= CAPTURE_COOLDOWN_SECONDS:
+                    image_path = None
+
                     try:
                         image_path = camera.capture_image(
                             speed_mph=reading.speed_mph,
                             direction=reading.direction,
                         )
-                        last_capture_time = now
                         print(f"Image captured: {image_path}")
                     except Exception as camera_exc:
                         print(f"Camera capture failed: {camera_exc}")
                         lcd.show_error("Camera failed")
+
+                    try:
+                        event = violation_handler.save_event(
+                            speed_mph=reading.speed_mph,
+                            image_path=image_path,
+                        )
+                        last_capture_time = now
+                        print(
+                            f"Violation event saved: "
+                            f"{event.speed_mph:.2f} mph | "
+                            f"{event.location} | "
+                            f"{event.image_path}"
+                        )
+                    except Exception as db_exc:
+                        print(f"Failed to save event: {db_exc}")
+                        lcd.show_error("DB save failed")
 
             else:
                 lcd.show_speed(reading.speed_mph, reading.direction)
@@ -96,13 +117,12 @@ def main() -> None:
         print("\nStopped by user.")
         lcd.write_lines("Stopping...", "")
         time.sleep(1)
-        lcd.show_idle
+        lcd.show_idle()
 
     except Exception as exc:
         print(f"Radar test error: {exc}")
         lcd.write_lines("Radar Error", str(exc)[:16])
         time.sleep(3)
-
 
     finally:
         try:
