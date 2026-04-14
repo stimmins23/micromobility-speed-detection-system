@@ -65,7 +65,7 @@ def get_all_events(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
             """
             SELECT id, timestamp, speed_mph, threshold_value, image_path, location
             FROM events
-            ORDER BY id
+            ORDER BY id DESC
             """
         )
         rows = cursor.fetchall()
