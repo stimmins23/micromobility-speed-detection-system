@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 from datetime import datetime
@@ -23,7 +24,7 @@ def create_table(db_path: Path = DEFAULT_DB_PATH) -> None:
                 timestamp TEXT NOT NULL,
                 speed_mph REAL NOT NULL,
                 threshold_value REAL NOT NULL,
-                image_path TEXT,
+                image_paths TEXT,
                 location TEXT NOT NULL
             )
             """
@@ -31,7 +32,7 @@ def create_table(db_path: Path = DEFAULT_DB_PATH) -> None:
         conn.commit()
 
 
-def insert_event(event: SpeedEvent, db_path: Path = DEFAULT_DB_PATH) -> None:
+def insert_event(event: SpeedEvent, db_path: Path = DEFAULT_DB_PATH) -> SpeedEvent:
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -40,16 +41,16 @@ def insert_event(event: SpeedEvent, db_path: Path = DEFAULT_DB_PATH) -> None:
                 timestamp,
                 speed_mph,
                 threshold_value,
-                image_path,
+                image_paths,
                 location
             )
             VALUES (?, ?, ?, ?, ?)
             """,
             (
-                event.timestamp.isoformat(),
+                event.timestamp.isoformat() if event.timestamp else datetime.now().isoformat(),
                 event.speed_mph,
                 event.threshold_value,
-                event.image_path,
+                json.dumps(event.image_paths),
                 event.location,
             ),
         )
@@ -63,7 +64,7 @@ def get_all_events(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, timestamp, speed_mph, threshold_value, image_path, location
+            SELECT id, timestamp, speed_mph, threshold_value, image_paths, location
             FROM events
             ORDER BY id DESC
             """
@@ -78,7 +79,7 @@ def get_all_events(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEvent]:
                 timestamp=datetime.fromisoformat(row[1]),
                 speed_mph=row[2],
                 threshold_value=row[3],
-                image_path=row[4],
+                image_paths=json.loads(row[4]) if row[4] else [],
                 location=row[5],
             )
         )
@@ -90,7 +91,7 @@ def get_events_above_threshold(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEve
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, timestamp, speed_mph, threshold_value, image_path, location
+            SELECT id, timestamp, speed_mph, threshold_value, image_paths, location
             FROM events
             WHERE speed_mph >= threshold_value
             ORDER BY id
@@ -104,7 +105,7 @@ def get_events_above_threshold(db_path: Path = DEFAULT_DB_PATH) -> list[SpeedEve
             timestamp=datetime.fromisoformat(row[1]),
             speed_mph=row[2],
             threshold_value=row[3],
-            image_path=row[4],
+            image_paths=json.loads(row[4]) if row[4] else [],
             location=row[5],
         )
         for row in rows
@@ -119,7 +120,7 @@ def get_events_above_speed(
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, timestamp, speed_mph, threshold_value, image_path, location
+            SELECT id, timestamp, speed_mph, threshold_value, image_paths, location
             FROM events
             WHERE speed_mph >= ?
             ORDER BY id
@@ -134,7 +135,7 @@ def get_events_above_speed(
             timestamp=datetime.fromisoformat(row[1]),
             speed_mph=row[2],
             threshold_value=row[3],
-            image_path=row[4],
+            image_paths=json.loads(row[4]) if row[4] else [],
             location=row[5],
         )
         for row in rows
@@ -149,7 +150,7 @@ def get_events_by_location(
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, timestamp, speed_mph, threshold_value, image_path, location
+            SELECT id, timestamp, speed_mph, threshold_value, image_paths, location
             FROM events
             WHERE location = ?
             ORDER BY id
@@ -164,7 +165,7 @@ def get_events_by_location(
             timestamp=datetime.fromisoformat(row[1]),
             speed_mph=row[2],
             threshold_value=row[3],
-            image_path=row[4],
+            image_paths=json.loads(row[4]) if row[4] else [],
             location=row[5],
         )
         for row in rows

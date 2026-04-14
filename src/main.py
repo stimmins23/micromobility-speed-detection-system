@@ -2,7 +2,9 @@
 Entry point for application.
 Starts the radar, LCD, and camera services. Then runs the main monitoring loop.
 """
+
 import time
+from pathlib import Path
 
 from src.config.settings import (
     MIN_VALID_SPEED_MPH,
@@ -13,8 +15,6 @@ from src.config.settings import (
     BURST_CAPTURE_DURATION_SECONDS,
     BURST_CAPTURE_INTERVAL_SECONDS,
 )
-
-from pathlib import Path
 from src.display.lcd_display import LCDDisplay
 from src.camera.capture import CameraCapture
 from src.radar.radar import RadarSensor
@@ -32,11 +32,8 @@ def main() -> None:
     )
 
     last_capture_time = 0.0
-
-    # NEW: state tracking for deduping
-    violation_active = False
-    last_violation_seen_time = 0.0
-    violation_reset_seconds = 1.0  # time required to "reset" detection
+    base_dir = Path(__file__).resolve().parent.parent
+    captures_root = base_dir / "data" / "captures"
 
     try:
         lcd.show_startup()
@@ -80,21 +77,14 @@ def main() -> None:
 
             now = time.time()
 
-            # --- NO TARGET / LOW SPEED ---
             if not reading.detected or reading.speed_mph < MIN_VALID_SPEED_MPH:
                 lcd.show_no_target()
 
-                # reset violation state if enough time has passed
-                if now - last_violation_seen_time >= violation_reset_seconds:
-                    violation_active = False
-
-            # --- THRESHOLD VIOLATION ---
             elif reading.speed_mph >= SPEED_THRESHOLD_MPH:
                 lcd.show_warning(reading.speed_mph)
 
-                now = time.time()
                 if now - last_capture_time >= CAPTURE_COOLDOWN_SECONDS:
-                    image_path = None
+                    relative_image_paths = []
 
                     try:
                         image_paths = camera.capture_burst(
@@ -105,11 +95,14 @@ def main() -> None:
                         )
 
                         if image_paths:
-                            image_path = str(Path(image_paths[0]).parent)
+                            relative_image_paths = [
+                                str(Path(path).resolve().relative_to(captures_root.resolve()))
+                                for path in image_paths
+                            ]
 
-                        print(f"Burst captured: {len(image_paths)} images")
-                        for path in image_paths:
-                            print(f"  {path}")
+                        print(f"Burst captured: {len(relative_image_paths)} images")
+                        for relative_path in relative_image_paths:
+                            print(f"  {relative_path}")
 
                     except Exception as camera_exc:
                         print(f"Burst capture failed: {camera_exc}")
@@ -118,26 +111,21 @@ def main() -> None:
                     try:
                         event = violation_handler.save_event(
                             speed_mph=reading.speed_mph,
-                            image_path=image_path,
+                            image_paths=relative_image_paths,
                         )
                         last_capture_time = now
                         print(
                             f"Violation event saved: "
                             f"{event.speed_mph:.2f} mph | "
                             f"{event.location} | "
-                            f"{event.image_path}"
+                            f"{event.image_paths}"
                         )
                     except Exception as db_exc:
                         print(f"Failed to save event: {db_exc}")
                         lcd.show_error("DB save failed")
 
-            # --- NORMAL SPEED ---
             else:
                 lcd.show_speed(reading.speed_mph, reading.direction)
-
-                # reset if object is gone long enough
-                if now - last_violation_seen_time >= violation_reset_seconds:
-                    violation_active = False
 
             time.sleep(RADAR_POLL_INTERVAL_SECONDS)
 

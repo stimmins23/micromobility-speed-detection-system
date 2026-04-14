@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Load events from API
 async function loadEvents() {
     try {
         showLoadingState();
@@ -31,11 +30,10 @@ async function loadEvents() {
     }
 }
 
-// Update summary cards
 function updateSummaryCards(events) {
     const totalEvents = events.length;
 
-    const violations = events.filter(event => 
+    const violations = events.filter(event =>
         event.speed_mph > event.threshold_value
     ).length;
 
@@ -57,7 +55,6 @@ function updateSummaryCards(events) {
     }
 }
 
-// Render table
 function renderEventsTable(events) {
     const tableBody = document.querySelector("#eventsTableBody");
 
@@ -81,9 +78,20 @@ function renderEventsTable(events) {
 
         const formattedTimestamp = formatDateTime(event.timestamp);
 
-        const imageCell = event.image_path
-            ? `<a href="${event.image_path}" target="_blank">View Image</a>`
-            : `<span class="text-muted">No Image</span>`;
+        const imageCell = event.image_paths && event.image_paths.length > 0
+            ? `
+                <div class="d-flex flex-wrap gap-2">
+                    ${event.image_paths.map(path => `
+                        <img
+                            src="/captures/${path}"
+                            alt="Event image"
+                            class="img-thumbnail"
+                            style="width: 120px; height: 90px; object-fit: cover;"
+                        >
+                    `).join("")}
+                </div>
+            `
+            : `<span class="text-muted">No Images</span>`;
 
         const exceeded = event.speed_mph > event.threshold_value
             ? `<span class="badge bg-danger">Yes</span>`
@@ -103,13 +111,11 @@ function renderEventsTable(events) {
     });
 }
 
-// Format timestamp
 function formatDateTime(timestamp) {
     const date = new Date(timestamp);
     return isNaN(date.getTime()) ? timestamp : date.toLocaleString();
 }
 
-// Loading state
 function showLoadingState() {
     const tableBody = document.querySelector("#eventsTableBody");
 
@@ -124,7 +130,6 @@ function showLoadingState() {
     }
 }
 
-// Error state
 function showErrorState(message) {
     const tableBody = document.querySelector("#eventsTableBody");
 

@@ -1,12 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+
 
 @dataclass
 class SpeedEvent:
-    id: Optional[int]
-    timestamp: datetime
-    speed_mph: float
-    threshold_value: float
-    image_path: Optional[str]
-    location: str
+    id: int | None = None
+    timestamp: datetime | None = None
+    speed_mph: float = 0.0
+    threshold_value: float = 0.0
+    image_paths: list[str] = field(default_factory=list)
+    location: str = ""
