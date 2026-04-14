@@ -47,3 +47,32 @@ class CameraCapture:
 
         self.camera.capture_file(str(filepath))
         return str(filepath)
+    
+    def capture_burst(
+        self,
+        speed_mph: float,
+        direction: str = "",
+        duration_seconds: float = 1.0,
+        interval_seconds: float = 0.2,
+    ) -> list[str]:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_direction = direction.lower() if direction else "unknown"
+
+        burst_dir = Path(CAPTURE_DIR) / f"{timestamp}_{speed_mph:.1f}mph_{safe_direction}"
+        burst_dir.mkdir(parents=True, exist_ok=True)
+
+        image_paths = []
+        start_time = time.time()
+        frame_index = 1
+
+        while time.time() - start_time < duration_seconds:
+            filename = f"frame_{frame_index:03d}.jpg"
+            filepath = burst_dir / filename
+
+            self.camera.capture_file(str(filepath))
+            image_paths.append(str(filepath))
+
+            frame_index += 1
+            time.sleep(interval_seconds)
+
+        return image_paths

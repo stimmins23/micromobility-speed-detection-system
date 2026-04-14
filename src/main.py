@@ -10,8 +10,11 @@ from src.config.settings import (
     SPEED_THRESHOLD_MPH,
     CAPTURE_COOLDOWN_SECONDS,
     DEFAULT_LOCATION,
+    BURST_CAPTURE_DURATION_SECONDS,
+    BURST_CAPTURE_INTERVAL_SECONDS,
 )
 
+from pathlib import Path
 from src.display.lcd_display import LCDDisplay
 from src.camera.capture import CameraCapture
 from src.radar.radar import RadarSensor
@@ -89,20 +92,27 @@ def main() -> None:
             elif reading.speed_mph >= SPEED_THRESHOLD_MPH:
                 lcd.show_warning(reading.speed_mph)
 
-                last_violation_seen_time = now
-
-                # only trigger ONCE per pass
-                if not violation_active and (now - last_capture_time >= CAPTURE_COOLDOWN_SECONDS):
+                now = time.time()
+                if now - last_capture_time >= CAPTURE_COOLDOWN_SECONDS:
                     image_path = None
 
                     try:
-                        image_path = camera.capture_image(
+                        image_paths = camera.capture_burst(
                             speed_mph=reading.speed_mph,
                             direction=reading.direction,
+                            duration_seconds=BURST_CAPTURE_DURATION_SECONDS,
+                            interval_seconds=BURST_CAPTURE_INTERVAL_SECONDS,
                         )
-                        print(f"Image captured: {image_path}")
+
+                        if image_paths:
+                            image_path = str(Path(image_paths[0]).parent)
+
+                        print(f"Burst captured: {len(image_paths)} images")
+                        for path in image_paths:
+                            print(f"  {path}")
+
                     except Exception as camera_exc:
-                        print(f"Camera capture failed: {camera_exc}")
+                        print(f"Burst capture failed: {camera_exc}")
                         lcd.show_error("Camera failed")
 
                     try:
@@ -110,17 +120,13 @@ def main() -> None:
                             speed_mph=reading.speed_mph,
                             image_path=image_path,
                         )
-
                         last_capture_time = now
-                        violation_active = True  # lock until reset
-
                         print(
                             f"Violation event saved: "
                             f"{event.speed_mph:.2f} mph | "
                             f"{event.location} | "
                             f"{event.image_path}"
                         )
-
                     except Exception as db_exc:
                         print(f"Failed to save event: {db_exc}")
                         lcd.show_error("DB save failed")
