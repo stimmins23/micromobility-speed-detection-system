@@ -1,7 +1,8 @@
 .venv/
 __pycache__/
-*.pyc 
+*.pyc
+.vscode/
+
 data/captures/*
 data/logs/*
-data/db/*
-.vscode/
+data/events.db
